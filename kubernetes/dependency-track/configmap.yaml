@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dependency-track-config
+  namespace: dependency-track
+data:
+  ALPINE_APPLICATION_URL: "https://dependency-track.ssf.local"
+  ALPINE_OIDC_ENABLED: "true"
+  ALPINE_OIDC_ISSUER: "https://auth.ssf.local/realms/ssf"
+  ALPINE_OIDC_CLIENT_ID: "dependency-track"
+  ALPINE_OIDC_USERNAME_CLAIM: "preferred_username"
+  ALPINE_OIDC_TEAMS_CLAIM: "groups"
+  ALPINE_OIDC_USER_PROVISIONING: "true"
+  ALPINE_OIDC_TEAM_SYNCHRONIZATION: "true"
+  ALPINE_METRICS_ENABLED: "true"
+  ALPINE_METRICS_AUTH_USERNAME: "prometheus"

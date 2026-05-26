@@ -1,0 +1,9 @@
+variable "project_name" { type = string }
+variable "environment" { type = string }
+variable "grafana_admin_password_secret" { type = string }
+variable "pagerduty_service_key_secret_arn" { type = string }
+variable "mttp_threshold_days" { type = number }
+variable "enable_security_dashboards" { type = bool }
+variable "eks_cluster_name" { type = string }
+variable "subnet_ids" { type = list(string) }
+variable "common_tags" { type = map(string) }

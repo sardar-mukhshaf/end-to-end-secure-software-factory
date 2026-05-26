@@ -1,0 +1,20 @@
+- rule: SAMA Audit Privileged Container Start
+  desc: Log all privileged container starts for SAMA compliance
+  condition: >
+    spawned_process and
+    container and
+    proc.name != ""
+  output: >
+    SAMA Audit: Container started
+    (user=%user.name command=%proc.cmdline container=%container.name image=%container.image)
+  priority: NOTICE
+
+- rule: SAMA Audit Database Access
+  desc: Log all database connection attempts
+  condition: >
+    outbound and
+    (fd.name contains ":5432" or fd.name contains ":3306" or fd.name contains ":1433")
+  output: >
+    SAMA Audit: Database access
+    (user=%user.name command=%proc.cmdline connection=%fd.name)
+  priority: NOTICE

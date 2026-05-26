@@ -1,0 +1,36 @@
+name: Runner Autoscaling
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  scale-runners:
+    runs-on: [self-hosted, secure-runner]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: me-central-1
+      - name: Update Kubeconfig
+        run: aws eks update-kubeconfig --name ssf-prod-eks --region me-central-1
+      - name: Scale Runner Pool
+        run: |
+          QUEUED=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/orgs/${{ github.repository_owner }}/actions/runners | jq '.runners | map(select(.status == "offline")) | length')
+          if [ "$QUEUED" -gt 5 ]; then
+            kubectl scale deployment arc-runner-set -n github-runners --replicas=10
+          else
+            kubectl scale deployment arc-runner-set -n github-runners --replicas=2
+          fi
+      - name: Rotate Runners
+        run: |
+          kubectl rollout restart deployment arc-runner-set -n github-runners
+          kubectl rollout status deployment arc-runner-set -n github-runners --timeout=300s

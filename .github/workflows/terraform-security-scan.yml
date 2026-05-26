@@ -1,0 +1,54 @@
+name: Terraform Security Scan
+
+on:
+  pull_request:
+    paths:
+      - 'terraform/**'
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  terraform-scan:
+    runs-on: [self-hosted, secure-runner]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive terraform/
+      - name: Terraform Validate
+        run: |
+          cd terraform
+          terraform init -backend=false
+          terraform validate
+      - name: Checkov Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: sarif
+          output_file_path: reports/checkov.sarif
+          soft_fail: false
+      - name: Terrascan Scan
+        uses: tenable/terrascan-action@main
+        with:
+          iac_type: terraform
+          iac_version: v14
+          policy_type: aws
+          only_warn: false
+      - name: Snyk IaC Test
+        uses: snyk/actions/iac@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high terraform/
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/checkov.sarif

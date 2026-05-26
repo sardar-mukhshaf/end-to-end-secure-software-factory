@@ -1,0 +1,17 @@
+apiVersion: policy.sigstore.dev/v1beta1
+kind: ClusterImagePolicy
+metadata:
+  name: cosign-policy
+spec:
+  images:
+    - glob: "*.dkr.ecr.*.amazonaws.com/**"
+  authorities:
+    - key:
+        kms: "awskms:///alias/cosign-key"
+      name: "aws-kms"
+    - keyless:
+        url: "https://fulcio.sigstore.dev"
+        identities:
+          - issuer: "https://token.actions.githubusercontent.com"
+            subjectRegExp: "^https://github.com/.*/.*/.github/workflows/.*@.*$"
+      name: "github-keyless"

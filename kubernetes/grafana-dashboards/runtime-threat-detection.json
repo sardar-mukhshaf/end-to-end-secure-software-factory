@@ -1,0 +1,37 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Falco Alerts by Severity",
+      "type": "graph",
+      "targets": [{ "expr": "sum by (priority) (falco_events_total)", "legendFormat": "{{priority}}" }],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "title": "Blocked Pods by Kyverno",
+      "type": "stat",
+      "targets": [{ "expr": "sum(kyverno_policy_results_total{result=\"fail\"})", "legendFormat": "Blocked Pods" }],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "title": "GuardDuty Findings",
+      "type": "table",
+      "targets": [{ "expr": "aws_guardduty_findings_count", "legendFormat": "Findings" }],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["security", "runtime", "falco", "sama"],
+  "templating": { "list": [] },
+  "time": { "from": "now-7d", "to": "now" },
+  "timezone": "browser",
+  "title": "Runtime Threat Detection",
+  "uid": "runtime-threat-detection",
+  "version": 1
+}

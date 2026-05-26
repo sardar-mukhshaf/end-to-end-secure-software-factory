@@ -1,0 +1,9 @@
+variable "project_name" { type = string }
+variable "environment" { type = string }
+variable "cluster_version" { type = string }
+variable "node_os" { type = string }
+variable "enable_guardduty_eks" { type = bool }
+variable "cluster_endpoint_public_access" { type = bool }
+variable "subnet_ids" { type = list(string) }
+variable "vpc_id" { type = string }
+variable "common_tags" { type = map(string) }

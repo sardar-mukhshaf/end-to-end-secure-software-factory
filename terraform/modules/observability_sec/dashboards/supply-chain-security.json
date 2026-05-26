@@ -1,0 +1,49 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Images Signed (%)",
+      "type": "stat",
+      "targets": [{ "expr": "(count(cosign_signature_verified == 1) / count(cosign_signature_verified)) * 100", "legendFormat": "% Signed" }],
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 }
+    },
+    {
+      "title": "Images Scanned Clean (%)",
+      "type": "stat",
+      "targets": [{ "expr": "(count(trivy_image_critical == 0) / count(trivy_image_critical)) * 100", "legendFormat": "% Clean" }],
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 }
+    },
+    {
+      "title": "Deployments with SBOM (%)",
+      "type": "stat",
+      "targets": [{ "expr": "(count(dtrack_sbom_uploaded == 1) / count(dtrack_sbom_uploaded)) * 100", "legendFormat": "% SBOM" }],
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 }
+    },
+    {
+      "title": "Policy Violations",
+      "type": "graph",
+      "targets": [{ "expr": "sum by (policy) (kyverno_policy_results_total{result=\"fail\"})", "legendFormat": "{{policy}}" }],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+    },
+    {
+      "title": "Blocked Deployments",
+      "type": "graph",
+      "targets": [{ "expr": "sum(kyverno_policy_results_total{result=\"fail\",action=\"enforce\"})", "legendFormat": "Blocked" }],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["security", "supply-chain", "sama"],
+  "templating": { "list": [] },
+  "time": { "from": "now-7d", "to": "now" },
+  "timezone": "browser",
+  "title": "Supply Chain Security",
+  "uid": "supply-chain-security",
+  "version": 1
+}

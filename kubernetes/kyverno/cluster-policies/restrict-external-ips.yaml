@@ -1,0 +1,25 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-external-ips
+  annotations:
+    policies.kyverno.io/title: "Restrict External IPs"
+    policies.kyverno.io/severity: "medium"
+    policies.kyverno.io/category: "Network Security"
+    policies.kyverno.io/subject: "Service"
+    policies.kyverno.io/description: >-
+      Prevent Services from using externalIPs.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-external-ips
+      match:
+        resources:
+          kinds:
+            - Service
+      validate:
+        message: "externalIPs are not allowed."
+        pattern:
+          spec:
+            X(externalIPs): "?*"

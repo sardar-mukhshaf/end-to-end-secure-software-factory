@@ -1,0 +1,38 @@
+apiVersion: kyverno.io/v2beta1
+kind: PolicyException
+metadata:
+  name: system-namespaces-exception
+  namespace: kyverno
+spec:
+  exceptions:
+    - policyName: verify-image-signatures
+      ruleNames:
+        - "*"
+    - policyName: restrict-image-registries
+      ruleNames:
+        - "*"
+    - policyName: require-non-root
+      ruleNames:
+        - "*"
+    - policyName: disallow-host-path
+      ruleNames:
+        - "*"
+    - policyName: disallow-privilege-escalation
+      ruleNames:
+        - "*"
+    - policyName: enforce-pod-security-standards
+      ruleNames:
+        - "*"
+  match:
+    any:
+      - resources:
+          kinds:
+            - Pod
+            - Deployment
+            - StatefulSet
+            - DaemonSet
+          namespaces:
+            - kube-system
+            - kyverno
+            - falco
+            - github-runners

@@ -1,0 +1,21 @@
+falcosidekick:
+  enabled: true
+  config:
+    slack:
+      webhookurl: "${SLACK_WEBHOOK_URL}"
+      minimumpriority: "warning"
+    pagerduty:
+      routingKey: "${PAGERDUTY_ROUTING_KEY}"
+      minimumpriority: "critical"
+    aws:
+      region: "me-central-1"
+      s3:
+        bucket: "${S3_ALERT_BUCKET}"
+        prefix: "falco-alerts/"
+        minimumpriority: "notice"
+    sns:
+      topicarn: "${SNS_TOPIC_ARN}"
+      rawjson: true
+      minimumpriority: "critical"
+  serviceMonitor:
+    enabled: true

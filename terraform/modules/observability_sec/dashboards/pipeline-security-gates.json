@@ -1,0 +1,49 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "TruffleHog Secrets Found",
+      "type": "stat",
+      "targets": [{ "expr": "sum(trufflehog_secrets_found)", "legendFormat": "Secrets" }],
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 }
+    },
+    {
+      "title": "SonarQube Critical Bugs",
+      "type": "stat",
+      "targets": [{ "expr": "sum(sonarqube_bugs_critical)", "legendFormat": "Critical Bugs" }],
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 }
+    },
+    {
+      "title": "Trivy CVE Count",
+      "type": "graph",
+      "targets": [{ "expr": "sum by (severity) (trivy_image_vulnerabilities)", "legendFormat": "{{severity}}" }],
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 }
+    },
+    {
+      "title": "Snyk IaC Issues",
+      "type": "stat",
+      "targets": [{ "expr": "sum(snyk_iac_issues)", "legendFormat": "IaC Issues" }],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+    },
+    {
+      "title": "Build Failure Rate",
+      "type": "graph",
+      "targets": [{ "expr": "(sum(github_actions_failed) / sum(github_actions_total)) * 100", "legendFormat": "% Failed" }],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["security", "pipeline", "sama"],
+  "templating": { "list": [] },
+  "time": { "from": "now-7d", "to": "now" },
+  "timezone": "browser",
+  "title": "Pipeline Security Gates",
+  "uid": "pipeline-security-gates",
+  "version": 1
+}

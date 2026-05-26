@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dependency-track-apiserver
+  namespace: dependency-track
+  labels:
+    app: dependency-track
+    component: apiserver
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dependency-track
+      component: apiserver
+  template:
+    metadata:
+      labels:
+        app: dependency-track
+        component: apiserver
+    spec:
+      serviceAccountName: dependency-track
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: apiserver
+          image: dependencytrack/apiserver:4.11.0@sha256:7f0e6e20f90d30c12a07192c0f9712a9c6f4c7e6e5e8b6f1e4a6c8d2e0f4a6c8d
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ALPINE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: dependency-track-db
+                  key: url
+            - name: ALPINE_DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dependency-track-db
+                  key: password
+          resources:
+            limits:
+              cpu: "4000m"
+              memory: "8Gi"
+            requests:
+              cpu: "1000m"
+              memory: "4Gi"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dependency-track-frontend
+  namespace: dependency-track
+  labels:
+    app: dependency-track
+    component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dependency-track
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: dependency-track
+        component: frontend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: frontend
+          image: dependencytrack/frontend:4.11.0@sha256:7f0e6e20f90d30c12a07192c0f9712a9c6f4c7e6e5e8b6f1e4a6c8d2e0f4a6c8d
+          ports:
+            - containerPort: 8080
+          env:
+            - name: API_BASE_URL
+              value: "http://dependency-track-apiserver:8080"
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+            requests:
+              cpu: "250m"
+              memory: "512Mi"

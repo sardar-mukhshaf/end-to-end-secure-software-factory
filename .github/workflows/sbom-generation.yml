@@ -1,0 +1,46 @@
+name: SBOM Generation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  generate-sbom:
+    runs-on: [self-hosted, secure-runner]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Syft
+        uses: anchore/syft-action@v0
+      - name: Generate CycloneDX SBOM
+        run: |
+          syft packages dir:. -o cyclonedx-json=sbom.cdx.json
+      - name: Validate SBOM
+        run: |
+          if command -v cyclonedx-cli >/dev/null 2>&1; then
+            cyclonedx-cli validate --input-file sbom.cdx.json --input-version v1_5
+          fi
+      - name: Sign SBOM
+        uses: sigstore/cosign-installer@v3
+      - name: Sign with Cosign
+        run: |
+          cosign sign-blob --key awskms:///alias/cosign-key \
+            sbom.cdx.json --output-signature sbom.cdx.json.sig
+      - name: Upload to Dependency-Track
+        run: |
+          curl -sk -X POST "${{ secrets.DTRACK_URL }}/api/v1/bom" \
+            -H "X-Api-Key: ${{ secrets.DTRACK_API_KEY }}" \
+            -F "projectName=${{ github.repository }}" \
+            -F "autoCreate=true" \
+            -F "bom=@sbom.cdx.json"
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            sbom.cdx.json
+            sbom.cdx.json.sig

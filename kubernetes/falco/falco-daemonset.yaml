@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: falco
+  namespace: falco
+  labels:
+    app: falco
+spec:
+  selector:
+    matchLabels:
+      app: falco
+  template:
+    metadata:
+      labels:
+        app: falco
+    spec:
+      containers:
+        - name: falco
+          image: falcosecurity/falco:0.37.0@sha256:7f0e6e20f90d30c12a07192c0f9712a9c6f4c7e6e5e8b6f1e4a6c8d2e0f4a6c8d
+          securityContext:
+            privileged: true
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            - name: FALCO_BPF_PROBE
+              value: ""
+            - name: FALCO_DRIVER_LOADER_OPTIONS
+              value: "--compile"
+          volumeMounts:
+            - mountPath: /host/proc
+              name: proc-volume
+              readOnly: true
+            - mountPath: /host/boot
+              name: boot-volume
+              readOnly: true
+            - mountPath: /host/lib/modules
+              name: modules-volume
+              readOnly: true
+            - mountPath: /host/usr
+              name: usr-volume
+              readOnly: true
+            - mountPath: /host/etc
+              name: etc-volume
+              readOnly: true
+            - mountPath: /etc/falco
+              name: falco-config
+      volumes:
+        - name: proc-volume
+          hostPath:
+            path: /proc
+        - name: boot-volume
+          hostPath:
+            path: /boot
+        - name: modules-volume
+          hostPath:
+            path: /lib/modules
+        - name: usr-volume
+          hostPath:
+            path: /usr
+        - name: etc-volume
+          hostPath:
+            path: /etc
+        - name: falco-config
+          configMap:
+            name: falco
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/control-plane
+          effect: NoSchedule

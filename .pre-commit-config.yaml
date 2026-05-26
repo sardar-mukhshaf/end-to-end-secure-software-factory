@@ -1,0 +1,42 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1024']
+
+  - repo: https://github.com/trufflesecurity/trufflehog
+    rev: v3.80.1
+    hooks:
+      - id: trufflehog
+        name: TruffleHog Secret Scan
+        entry: trufflehog git file://. --only-verified --fail
+        language: system
+        stages: [pre-commit]
+
+  - repo: local
+    hooks:
+      - id: terraform-fmt
+        name: Terraform Format
+        entry: terraform fmt -recursive
+        language: system
+        files: \.tf$
+        pass_filenames: false
+
+      - id: terraform-validate
+        name: Terraform Validate
+        entry: bash -c 'cd terraform && terraform validate'
+        language: system
+        files: \.tf$
+        pass_filenames: false
+
+      - id: trivy-fs
+        name: Trivy Filesystem Scan
+        entry: trivy filesystem --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 1 .
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]

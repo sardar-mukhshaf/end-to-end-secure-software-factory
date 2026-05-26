@@ -1,0 +1,11 @@
+variable "project_name" { type = string }
+variable "environment" { type = string }
+variable "github_org" { type = string }
+variable "github_app_id_secret_arn" { type = string }
+variable "runner_min_replicas" { type = number }
+variable "runner_max_replicas" { type = number }
+variable "runner_namespace" { type = string }
+variable "eks_cluster_name" { type = string }
+variable "eks_oidc_issuer_url" { type = string }
+variable "subnet_ids" { type = list(string) }
+variable "common_tags" { type = map(string) }

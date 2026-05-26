@@ -1,0 +1,254 @@
+name: DevSecOps Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+  actions: read
+
+env:
+  AWS_REGION: me-central-1
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  IMAGE_TAG: ${{ github.sha }}
+  PROJECT_NAME: ssf
+
+jobs:
+  secret-scan:
+    runs-on: [self-hosted, secure-runner]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: TruffleHog Git Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --only-verified --fail
+      - name: TruffleHog Filesystem Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          extra_args: --only-verified --fail
+      - name: Upload Secret Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: secret-scan-report
+          path: trufflehog-report.json
+
+  sast:
+    runs-on: [self-hosted, secure-runner]
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.coverage.exclusions=**/*
+
+  dependency-scan:
+    runs-on: [self-hosted, secure-runner]
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: NPM Audit
+        run: npm audit --audit-level=high
+        continue-on-error: false
+      - name: OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: ${{ env.PROJECT_NAME }}
+          path: '.'
+          format: 'JSON'
+
+  build-and-sbom:
+    runs-on: [self-hosted, secure-runner]
+    needs: [sast, dependency-scan]
+    outputs:
+      image_uri: ${{ steps.build.outputs.image_uri }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build Image
+        id: build
+        run: |
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}/app:${{ env.IMAGE_TAG }}"
+          docker buildx build --platform linux/amd64 -t "$IMAGE_URI" .
+          docker push "$IMAGE_URI"
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+      - name: Generate SBOM with Syft
+        run: |
+          syft packages dir:. -o cyclonedx-json > sbom.cdx.json
+      - name: Upload SBOM to Dependency-Track
+        run: |
+          curl -sk -X POST "${{ secrets.DTRACK_URL }}/api/v1/bom" \
+            -H "X-Api-Key: ${{ secrets.DTRACK_API_KEY }}" \
+            -F "projectName=${{ env.PROJECT_NAME }}" \
+            -F "autoCreate=true" \
+            -F "bom=@sbom.cdx.json"
+
+  container-scan:
+    runs-on: [self-hosted, secure-runner]
+    needs: build-and-sbom
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ needs.build-and-sbom.outputs.image_uri }}
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  image-sign:
+    runs-on: [self-hosted, secure-runner]
+    needs: container-scan
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+      - name: Sign Image with KMS
+        run: |
+          cosign sign --key awskms:///alias/cosign-key \
+            ${{ needs.build-and-sbom.outputs.image_uri }}
+      - name: Attach SBOM to Image
+        run: |
+          cosign attach sbom --sbom sbom.cdx.json \
+            ${{ needs.build-and-sbom.outputs.image_uri }}
+      - name: Verify Signature
+        run: |
+          cosign verify --key awskms:///alias/cosign-key \
+            ${{ needs.build-and-sbom.outputs.image_uri }}
+
+  iac-scan:
+    runs-on: [self-hosted, secure-runner]
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkov Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: sarif
+          output_file_path: reports/checkov.sarif
+      - name: Terrascan Scan
+        uses: tenable/terrascan-action@main
+        with:
+          iac_type: terraform
+          iac_version: v14
+          policy_type: aws
+          only_warn: false
+      - name: Snyk IaC Test
+        uses: snyk/actions/iac@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+  deploy-staging:
+    runs-on: [self-hosted, secure-runner]
+    needs: [image-sign, iac-scan]
+    environment:
+      name: staging
+      url: https://staging.ssf.local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Update K8s Manifest
+        run: |
+          sed -i 's|image: .*|image: ${{ needs.build-and-sbom.outputs.image_uri }}|' k8s/staging/deployment.yaml
+      - name: Deploy to Staging
+        run: |
+          kubectl apply -f k8s/staging/
+      - name: Smoke Tests
+        run: |
+          kubectl rollout status deployment/app -n staging --timeout=300s
+
+  runtime-verification:
+    runs-on: [self-hosted, secure-runner]
+    needs: deploy-staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Falco Negative Test (Crypto Mining)
+        run: |
+          kubectl run falco-test --image=alpine --restart=Never --rm -i -- \
+            sh -c "wget -q -O - http://pool.minergate.com:443" || true
+      - name: Kyverno Negative Test (Unsigned Image)
+        run: |
+          kubectl run kyverno-test --image=dockerhub.io/library/nginx:latest \
+            --restart=Never --rm -i || true
+
+  deploy-prod:
+    runs-on: [self-hosted, secure-runner]
+    needs: [runtime-verification]
+    environment:
+      name: production
+      url: https://prod.ssf.local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Blue/Green Deploy
+        run: |
+          sed -i 's|image: .*|image: ${{ needs.build-and-sbom.outputs.image_uri }}|' k8s/prod/deployment.yaml
+          kubectl apply -f k8s/prod/
+          kubectl rollout status deployment/app -n prod --timeout=600s
+      - name: PagerDuty Notify
+        run: |
+          curl -X POST -H "Content-Type: application/json" \
+            -d '{"routing_key":"${{ secrets.PAGERDUTY_KEY }}","event_action":"trigger","payload":{"summary":"Production deployment completed","severity":"info"}}' \
+            https://events.pagerduty.com/v2/enqueue

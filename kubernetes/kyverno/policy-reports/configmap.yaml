@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kyverno-policy-reports-aggregator
+  namespace: kyverno
+data:
+  config.yaml: |
+    reports:
+      - name: cluster-policy-report
+        namespace: ""
+        kind: ClusterPolicyReport
+      - name: policy-report
+        namespace: "*"
+        kind: PolicyReport

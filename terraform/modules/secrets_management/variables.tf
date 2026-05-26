@@ -1,0 +1,9 @@
+variable "project_name" { type = string }
+variable "environment" { type = string }
+variable "rotation_days_db" { type = number }
+variable "rotation_days_api" { type = number }
+variable "enable_csi_driver" { type = bool }
+variable "enable_external_secrets" { type = bool }
+variable "eks_cluster_name" { type = string }
+variable "eks_oidc_issuer_url" { type = string }
+variable "common_tags" { type = map(string) }

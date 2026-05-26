@@ -1,0 +1,6 @@
+# Cosign public key reference
+# The actual public key is stored in AWS KMS and referenced as:
+# awskms:///alias/cosign-key
+# 
+# To retrieve the public key:
+# cosign public-key --key awskms:///alias/cosign-key > cosign.pub
