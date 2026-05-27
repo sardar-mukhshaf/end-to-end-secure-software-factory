@@ -25,6 +25,8 @@ spec:
             - kyverno
             - falco
             - github-runners
+            - dependency-track
+            - monitoring
       verifyImages:
         - imageReferences:
             - "*.dkr.ecr.*.amazonaws.com/*"

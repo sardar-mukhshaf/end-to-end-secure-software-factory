@@ -25,6 +25,8 @@ spec:
             - kyverno
             - falco
             - github-runners
+            - dependency-track
+            - monitoring
       validate:
         message: "Pod must run as non-root with read-only root filesystem and drop ALL capabilities."
         pattern:

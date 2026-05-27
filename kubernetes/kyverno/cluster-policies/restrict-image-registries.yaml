@@ -25,6 +25,8 @@ spec:
             - kyverno
             - falco
             - github-runners
+            - dependency-track
+            - monitoring
       validate:
         message: "Only private ECR registries are allowed."
         pattern:

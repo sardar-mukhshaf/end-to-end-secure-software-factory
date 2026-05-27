@@ -86,7 +86,7 @@ resource "aws_security_group" "dtrack_db" {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+    cidr_blocks = [var.vpc_cidr]
     description = "PostgreSQL from VPC"
   }
 
@@ -202,3 +202,274 @@ resource "aws_iam_role_policy" "dtrack_s3" {
 }
 
 data "aws_caller_identity" "current" {}
+
+# ---------------------------------------------------------------------------
+# Dependency-Track: Kubernetes Resources (deployed dynamically via Terraform)
+# ---------------------------------------------------------------------------
+
+resource "kubernetes_namespace" "dtrack" {
+  metadata {
+    name = "dependency-track"
+    labels = merge(var.common_tags, {
+      name                                = "dependency-track"
+      "pod-security.kubernetes.io/enforce" = "restricted"
+    })
+  }
+}
+
+resource "kubernetes_config_map_v1" "dtrack" {
+  metadata {
+    name      = "dependency-track-config"
+    namespace = kubernetes_namespace.dtrack.metadata[0].name
+  }
+
+  data = {
+    ALPINE_APPLICATION_URL           = "https://dependency-track.${var.domain_name}"
+    ALPINE_OIDC_ENABLED              = "false"
+    ALPINE_METRICS_ENABLED           = "true"
+    ALPINE_METRICS_AUTH_USERNAME     = "prometheus"
+    ALPINE_DATABASE_MODE             = "external"
+    ALPINE_DATABASE_DRIVER           = "org.postgresql.Driver"
+    ALPINE_DATABASE_DRIVER_PATH      = "/extlib/postgresql.jar"
+    ALPINE_DATABASE_URL              = "jdbc:postgresql://${aws_db_instance.dtrack.endpoint}/${aws_db_instance.dtrack.db_name}"
+  }
+}
+
+resource "kubernetes_secret_v1" "dtrack_db" {
+  metadata {
+    name      = "dependency-track-db"
+    namespace = kubernetes_namespace.dtrack.metadata[0].name
+  }
+
+  data = {
+    password = random_password.dtrack.result
+    url      = "jdbc:postgresql://${aws_db_instance.dtrack.endpoint}/${aws_db_instance.dtrack.db_name}"
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_service_account_v1" "dtrack" {
+  metadata {
+    name      = "dependency-track"
+    namespace = kubernetes_namespace.dtrack.metadata[0].name
+    annotations = {
+      "eks.amazonaws.com/role-arn" = aws_iam_role.dtrack_irsa.arn
+    }
+  }
+}
+
+resource "kubernetes_deployment_v1" "dtrack_apiserver" {
+  metadata {
+    name      = "dependency-track-apiserver"
+    namespace = kubernetes_namespace.dtrack.metadata[0].name
+    labels = {
+      app       = "dependency-track"
+      component = "apiserver"
+    }
+  }
+
+  spec {
+    replicas = 2
+    selector {
+      match_labels = {
+        app       = "dependency-track"
+        component = "apiserver"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app       = "dependency-track"
+          component = "apiserver"
+        }
+      }
+      spec {
+        service_account_name = kubernetes_service_account_v1.dtrack.metadata[0].name
+        security_context {
+          run_as_non_root = true
+          run_as_user     = 1000
+        }
+
+        container {
+          name  = "apiserver"
+          image = "dependencytrack/apiserver:${var.dependency_track_version}"
+
+          port { container_port = 8080 }
+
+          env_from {
+            config_map_ref { name = kubernetes_config_map_v1.dtrack.metadata[0].name }
+          }
+
+          env {
+            name = "ALPINE_DATABASE_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.dtrack_db.metadata[0].name
+                key  = "password"
+              }
+            }
+          }
+
+          resources {
+            limits   = { cpu = "4000m", memory = "8Gi" }
+            requests = { cpu = "1000m", memory = "4Gi" }
+          }
+
+          security_context {
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            run_as_non_root            = true
+            capabilities { drop = ["ALL"] }
+          }
+
+          volume_mount {
+            name       = "data"
+            mount_path = "/data"
+          }
+        }
+
+        volume {
+          name      = "data"
+          empty_dir {}
+        }
+      }
+    }
+  }
+
+  depends_on = [aws_db_instance.dtrack]
+}
+
+resource "kubernetes_deployment_v1" "dtrack_frontend" {
+  metadata {
+    name      = "dependency-track-frontend"
+    namespace = kubernetes_namespace.dtrack.metadata[0].name
+    labels = {
+      app       = "dependency-track"
+      component = "frontend"
+    }
+  }
+
+  spec {
+    replicas = 2
+    selector {
+      match_labels = {
+        app       = "dependency-track"
+        component = "frontend"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app       = "dependency-track"
+          component = "frontend"
+        }
+      }
+      spec {
+        security_context {
+          run_as_non_root = true
+          run_as_user     = 1000
+        }
+
+        container {
+          name  = "frontend"
+          image = "dependencytrack/frontend:${var.dependency_track_version}"
+
+          port { container_port = 8080 }
+
+          env {
+            name  = "API_BASE_URL"
+            value = "http://dependency-track-apiserver:8080"
+          }
+
+          resources {
+            limits   = { cpu = "1000m", memory = "2Gi" }
+            requests = { cpu = "250m", memory = "512Mi" }
+          }
+
+          security_context {
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            run_as_non_root            = true
+            capabilities { drop = ["ALL"] }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service_v1" "dtrack_apiserver" {
+  metadata {
+    name      = "dependency-track-apiserver"
+    namespace = kubernetes_namespace.dtrack.metadata[0].name
+  }
+  spec {
+    selector = { app = "dependency-track", component = "apiserver" }
+    port {
+      port        = 8080
+      target_port = 8080
+      protocol    = "TCP"
+    }
+    type = "ClusterIP"
+  }
+}
+
+resource "kubernetes_service_v1" "dtrack_frontend" {
+  metadata {
+    name      = "dependency-track-frontend"
+    namespace = kubernetes_namespace.dtrack.metadata[0].name
+  }
+  spec {
+    selector = { app = "dependency-track", component = "frontend" }
+    port {
+      port        = 8080
+      target_port = 8080
+      protocol    = "TCP"
+    }
+    type = "ClusterIP"
+  }
+}
+
+resource "kubernetes_ingress_v1" "dtrack" {
+  metadata {
+    name      = "dependency-track"
+    namespace = kubernetes_namespace.dtrack.metadata[0].name
+    annotations = {
+      "alb.ingress.kubernetes.io/scheme"             = "internal"
+      "alb.ingress.kubernetes.io/target-type"        = "ip"
+      "alb.ingress.kubernetes.io/listen-ports"       = "[{\"HTTPS\":443}]"
+      "alb.ingress.kubernetes.io/certificate-arn"    = var.acm_certificate_arn
+    }
+  }
+
+  spec {
+    ingress_class_name = "alb"
+    rule {
+      host = "dependency-track.${var.domain_name}"
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = kubernetes_service_v1.dtrack_frontend.metadata[0].name
+              port { number = 8080 }
+            }
+          }
+        }
+        path {
+          path      = "/api"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = kubernetes_service_v1.dtrack_apiserver.metadata[0].name
+              port { number = 8080 }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

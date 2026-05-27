@@ -82,3 +82,8 @@ enable_external_secrets = true
 # VPC
 enable_vpc_endpoints = true
 flow_log_retention   = 2555
+
+# Centralized Domain and SSL/TLS Certificates
+domain_name         = "ssf.local"
+acm_certificate_arn = ""
+

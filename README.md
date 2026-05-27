@@ -4,6 +4,23 @@
 
 This repository contains a complete, production-ready AWS infrastructure project implementing an end-to-end secure software factory. It takes code from developer commit all the way to signed, scanned, SBOM-tracked, runtime-monitored production workloads running on a hardened Amazon EKS cluster. Every stage of the pipeline is a security gate that cannot be bypassed, and every artifact is cryptographically signed, scanned for vulnerabilities, and tracked with a CycloneDX Software Bill of Materials (SBOM).
 
+## How It Works (For Beginners!)
+
+Imagine you are baking a cake, and you want to make absolutely sure no bad ingredients get in, the recipe is followed perfectly, and nobody tampers with it before it reaches the party. This project does exactly that, but for computer code!
+
+Here is the step-by-step journey of your code:
+1. **You write code** and hit "save and send" (commit).
+2. **The Guard checks your pockets**: Before your code even leaves your computer, a tool checks if you accidentally left any secret passwords in it.
+3. **The Proofreader checks your spelling**: Another tool reads your code to make sure it's written well and doesn't have obvious mistakes.
+4. **The Ingredient Check**: We check all the extra pieces of code (libraries) you used from the internet to make sure none of them are known to be broken or unsafe.
+5. **Boxing it up**: Your code gets packed into a secure box (called a container), and a list of everything inside is attached to the outside (like an ingredient label).
+6. **The X-Ray Machine**: We scan the whole box to look for any hidden weaknesses.
+7. **The Wax Seal**: If the box passes all tests, we put a special, un-fakeable wax seal (digital signature) on it.
+8. **The Delivery Guard**: When the box arrives at the live website, a guard checks the wax seal. If the seal is broken or missing, the box is rejected!
+9. **The Security Camera**: Even after your code is running on the live website, cameras (runtime monitoring) watch it 24/7. If it tries to do something weird, an alarm goes off immediately!
+
+In short: **As soon as you write code**, it goes through an automated gauntlet of security checks. If it passes every single one, it gets a "stamp of approval" and goes live to the users. If it fails *any* check, the process stops right there to keep everything safe!
+
 ## What Is This Project?
 
 The **Secure Software Factory (SSF)** is a reference architecture and Terraform-based implementation of a DevSecOps pipeline designed specifically for financial institutions operating under the Saudi Arabian Monetary Authority (SAMA) Cyber Security Framework. It addresses the critical need for organizations like STC Pay, Alinma Bank, and other SAMA-regulated entities to ensure that every piece of software deployed to production is trustworthy, traceable, and tamper-evident.

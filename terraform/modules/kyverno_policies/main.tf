@@ -71,7 +71,7 @@ resource "kubernetes_manifest" "verify_image_signatures" {
         }
         exclude = {
           resources = {
-            namespaces = ["kube-system", "kyverno", "falco", "github-runners"]
+            namespaces = ["kube-system", "kyverno", "falco", "github-runners", "dependency-track", "monitoring"]
           }
         }
         verifyImages = [{
@@ -117,7 +117,7 @@ resource "kubernetes_manifest" "restrict_image_registries" {
         }
         exclude = {
           resources = {
-            namespaces = ["kube-system", "kyverno", "falco", "github-runners"]
+            namespaces = ["kube-system", "kyverno", "falco", "github-runners", "dependency-track", "monitoring"]
           }
         }
         validate = {
@@ -161,7 +161,7 @@ resource "kubernetes_manifest" "require_resource_limits" {
         }
         exclude = {
           resources = {
-            namespaces = ["kube-system", "kyverno", "falco", "github-runners"]
+            namespaces = ["kube-system", "kyverno", "falco", "github-runners", "dependency-track", "monitoring"]
           }
         }
         validate = {
@@ -210,7 +210,7 @@ resource "kubernetes_manifest" "require_non_root" {
         }
         exclude = {
           resources = {
-            namespaces = ["kube-system", "kyverno", "falco", "github-runners"]
+            namespaces = ["kube-system", "kyverno", "falco", "github-runners", "dependency-track", "monitoring"]
           }
         }
         validate = {
@@ -263,7 +263,7 @@ resource "kubernetes_manifest" "disallow_host_path" {
         }
         exclude = {
           resources = {
-            namespaces = ["kube-system", "kyverno", "falco", "github-runners"]
+            namespaces = ["kube-system", "kyverno", "falco", "github-runners", "dependency-track", "monitoring"]
           }
         }
         validate = {
@@ -307,7 +307,7 @@ resource "kubernetes_manifest" "disallow_privilege_escalation" {
         }
         exclude = {
           resources = {
-            namespaces = ["kube-system", "kyverno", "falco", "github-runners"]
+            namespaces = ["kube-system", "kyverno", "falco", "github-runners", "dependency-track", "monitoring"]
           }
         }
         validate = {
@@ -390,7 +390,7 @@ resource "kubernetes_manifest" "enforce_pod_security_standards" {
         }
         exclude = {
           resources = {
-            namespaces = ["kube-system", "kyverno", "falco", "github-runners"]
+            namespaces = ["kube-system", "kyverno", "falco", "github-runners", "dependency-track", "monitoring"]
           }
         }
         validate = {

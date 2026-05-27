@@ -25,6 +25,8 @@ spec:
             - kyverno
             - falco
             - github-runners
+            - dependency-track
+            - monitoring
       validate:
         message: "Pod must comply with restricted Pod Security Standards."
         podSecurity:

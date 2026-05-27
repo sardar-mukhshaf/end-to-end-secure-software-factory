@@ -9,3 +9,7 @@ variable "vpc_id" { type = string }
 variable "eks_cluster_name" { type = string }
 variable "eks_oidc_issuer_url" { type = string }
 variable "common_tags" { type = map(string) }
+variable "domain_name" { type = string }
+variable "acm_certificate_arn" { type = string }
+variable "vpc_cidr" { type = string }
+

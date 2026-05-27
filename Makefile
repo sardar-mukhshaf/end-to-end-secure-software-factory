@@ -13,7 +13,7 @@ init:
 
 plan:
 	@echo "[PLAN] Planning $(ENV) environment..."
-	@cd terraform && terraform plan -var-file=environments/$(ENV)/$(ENV).tfvars -out=$(ENV).tfplan
+	@cd terraform && terraform plan -var-file=../terraform.tfvars -var-file=environments/$(ENV)/$(ENV).tfvars -out=$(ENV).tfplan
 
 apply:
 	@echo "[APPLY] Applying $(ENV) environment..."
@@ -21,7 +21,7 @@ apply:
 
 destroy:
 	@echo "[DESTROY] Destroying $(ENV) environment..."
-	@cd terraform && terraform destroy -var-file=environments/$(ENV)/$(ENV).tfvars
+	@cd terraform && terraform destroy -var-file=../terraform.tfvars -var-file=environments/$(ENV)/$(ENV).tfvars
 
 fmt:
 	@echo "[FMT] Formatting Terraform..."

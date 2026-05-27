@@ -5,12 +5,21 @@ set -euo pipefail
 # Idempotent S3 + DynamoDB backend bootstrap for Terraform remote state
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Backend configuration is passed via environment variables or defaults below
 
-BUCKET_NAME="${TF_STATE_BUCKET:-ssf-terraform-state-$(aws sts get-caller-identity --query Account --output text)}"
-DYNAMODB_TABLE="${TF_LOCK_TABLE:-ssf-terraform-locks}"
-REGION="${AWS_REGION:-me-central-1}"
-PROJECT="${PROJECT_NAME:-secure-software-factory}"
+# Parse variables from centralized terraform.tfvars in the root if it exists
+TFVARS_FILE="${SCRIPT_DIR}/../terraform.tfvars"
+TFVARS_REGION=""
+TFVARS_PROJECT=""
+
+if [ -f "${TFVARS_FILE}" ]; then
+  TFVARS_REGION=$(grep -E '^\s*aws_region\s*=' "${TFVARS_FILE}" | cut -d'"' -f2)
+  TFVARS_PROJECT=$(grep -E '^\s*project_name\s*=' "${TFVARS_FILE}" | cut -d'"' -f2)
+fi
+
+REGION="${AWS_REGION:-${TFVARS_REGION:-me-central-1}}"
+PROJECT="${PROJECT_NAME:-${TFVARS_PROJECT:-ssf}}"
+BUCKET_NAME="${TF_STATE_BUCKET:-${PROJECT}-terraform-state-\$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "123456789012")}"
+DYNAMODB_TABLE="${TF_LOCK_TABLE:-${PROJECT}-terraform-locks}"
 
 aws s3api head-bucket --bucket "${BUCKET_NAME}" 2>/dev/null || {
   echo "[BOOTSTRAP] Creating S3 bucket: ${BUCKET_NAME}"
@@ -60,6 +69,21 @@ aws dynamodb describe-table --table-name "${DYNAMODB_TABLE}" --region "${REGION}
     --billing-mode PAY_PER_REQUEST \
     --region "${REGION}"
 }
+
+# Generate backend.hcl for all environments automatically
+for ENV_NAME in dev staging prod; do
+  ENV_DIR="${SCRIPT_DIR}/../terraform/environments/${ENV_NAME}"
+  mkdir -p "${ENV_DIR}"
+  cat <<EOF > "${ENV_DIR}/backend.hcl"
+bucket         = "${BUCKET_NAME}"
+key            = "${ENV_NAME}/terraform.tfstate"
+region         = "${REGION}"
+encrypt        = true
+kms_key_id     = "alias/aws/s3"
+dynamodb_table = "${DYNAMODB_TABLE}"
+EOF
+  echo "[BOOTSTRAP] Generated ${ENV_NAME}/backend.hcl"
+done
 
 echo "[BOOTSTRAP] Backend resources ready."
 echo "  S3 Bucket: ${BUCKET_NAME}"

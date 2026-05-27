@@ -27,6 +27,11 @@ resource "helm_release" "falco" {
   }
 
   set {
+    name  = "falcosidekick.config.aws.region"
+    value = var.aws_region
+  }
+
+  set {
     name  = "customRules.rules.yaml"
     value = <<-EOT
       - rule: Crypto Mining Detection

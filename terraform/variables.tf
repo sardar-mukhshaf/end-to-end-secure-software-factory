@@ -296,3 +296,15 @@ variable "enable_license_analysis" {
   type        = bool
   default     = true
 }
+
+variable "domain_name" {
+  description = "Centralized domain name for internal routing"
+  type        = string
+  default     = "ssf.local"
+}
+
+variable "acm_certificate_arn" {
+  description = "ACM Certificate ARN for internal ingress"
+  type        = string
+  default     = ""
+}

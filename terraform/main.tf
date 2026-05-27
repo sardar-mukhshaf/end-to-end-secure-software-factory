@@ -114,14 +114,15 @@ module "kyverno_policies" {
 module "runtime_security" {
   source = "./modules/runtime_security"
 
-  project_name         = var.project_name
-  environment          = var.environment
-  falco_version        = var.falco_version
+  project_name          = var.project_name
+  environment           = var.environment
+  aws_region            = var.aws_region
+  falco_version         = var.falco_version
   falcosidekick_enabled = var.falcosidekick_enabled
-  alert_sns_topic_arn  = var.alert_sns_topic_arn
-  enable_auto_response = var.enable_auto_response
-  eks_cluster_name     = module.eks_hardened.cluster_name
-  common_tags          = var.common_tags
+  alert_sns_topic_arn   = var.alert_sns_topic_arn
+  enable_auto_response  = var.enable_auto_response
+  eks_cluster_name      = module.eks_hardened.cluster_name
+  common_tags           = var.common_tags
 
   depends_on = [module.kyverno_policies]
 }
@@ -155,12 +156,15 @@ module "sbom_platform" {
 
   project_name               = var.project_name
   environment                = var.environment
+  domain_name                = var.domain_name
+  acm_certificate_arn        = var.acm_certificate_arn
   dependency_track_version   = var.dependency_track_version
   db_instance_class          = var.db_instance_class
   sbom_bucket_name           = var.sbom_bucket_name
   enable_license_analysis    = var.enable_license_analysis
   subnet_ids                 = module.networking.private_subnet_ids
   vpc_id                     = module.networking.vpc_id
+  vpc_cidr                   = var.vpc_cidr
   eks_cluster_name           = module.eks_hardened.cluster_name
   eks_oidc_issuer_url        = module.eks_hardened.oidc_issuer_url
   common_tags                = var.common_tags
