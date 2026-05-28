@@ -1,4 +1,4 @@
-# Secure Software Factory — End-to-End DevSecOps Platform
+# Silsila Hardened Pipeline
 
 > **Zero-Trust Software Supply Chain for Saudi Financial Services (SAMA Compliant)**
 
